@@ -25,8 +25,8 @@ async function getBaseApi(url) {
   try {
     const response = await axios.get(url);
     const content = response.data;
-    if (content?.sleep) {
-      return { endpoint: content.sleep, message: content.copyright };
+    if (content?.kushempire) {
+      return { endpoint: content.kushempire, message: content.copyright };
     } else {
       return {
         endpoint: null,

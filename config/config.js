@@ -30,8 +30,8 @@ const settings = {
   AUTO_CODE_GATEWAY: process.env.AUTO_CODE_GATEWAY ? process.env.AUTO_CODE_GATEWAY.toLowerCase() === "true" : false,
 
   API_ID: process.env.API_ID ? process.env.API_ID : null,
-  BASE_URL: process.env.BASE_URL ? process.env.BASE_URL : "https://tgapi.sleepagotchi.com/v1/tg",
-  REF_ID: process.env.REF_ID ? process.env.REF_ID : "T_1092680235",
+  BASE_URL: process.env.BASE_URL ? process.env.BASE_URL : "https://api.kushempire.games/api",
+  REF_ID: process.env.REF_ID ? process.env.REF_ID : "Iil4QcC4TF",
 
   DELAY_BETWEEN_REQUESTS: process.env.DELAY_BETWEEN_REQUESTS && _isArray(process.env.DELAY_BETWEEN_REQUESTS) ? JSON.parse(process.env.DELAY_BETWEEN_REQUESTS) : [1, 5],
   DELAY_START_BOT: process.env.DELAY_START_BOT && _isArray(process.env.DELAY_START_BOT) ? JSON.parse(process.env.DELAY_START_BOT) : [1, 15],

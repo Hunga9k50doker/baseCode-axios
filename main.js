@@ -7,31 +7,15 @@ const user_agents = require("./config/userAgents");
 const settings = require("./config/config");
 const { sleep, loadData, saveToken, isTokenExpired, saveJson, updateEnv } = require("./utils");
 const { checkBaseUrl } = require("./checkAPI");
+const headers = require("./core/header");
 
 class ClientAPI {
   constructor(accountIndex, initData, session_name, baseURL) {
     this.accountIndex = accountIndex;
     this.queryId = initData;
-    this.headers = {
-      Accept: "application/json, text/plain, */*",
-      "Accept-Encoding": "gzip, deflate, br",
-      "Accept-Language": "vi-VN,vi;q=0.9,fr-FR;q=0.8,fr;q=0.7,en-US;q=0.6,en;q=0.5",
-      "Content-Type": "application/json",
-      Origin: "https://tg-sleepagotchi-tmp-cdn.sfo3.digitaloceanspaces.com",
-      referer: "https://tg-sleepagotchi-tmp-cdn.sfo3.digitaloceanspaces.com/",
-      "Sec-Ch-Ua": '"Not/A)Brand";v="99", "Google Chrome";v="115", "Chromium";v="115"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"Windows"',
-      "Sec-Fetch-Dest": "empty",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "same-origin",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    };
+    this.headers = headers;
     this.session_name = session_name;
     this.session_user_agents = this.#load_session_data();
-    this.skipTasks = settings.SKIP_TASKS;
     this.baseURL = baseURL;
   }
 
@@ -117,23 +101,39 @@ class ClientAPI {
     console.log(logMessage);
   }
 
-  async makeRequest(url, method, data = {}, retries = 1) {
+  async makeRequest(
+    url,
+    method,
+    data = {},
+    options = {
+      retries: 1,
+      isAuth: false,
+    }
+  ) {
+    const { retries, isAuth } = options;
+
     const headers = {
       ...this.headers,
+      Authorization: `tma ${this.queryId}`,
     };
+
+    if (!isAuth) {
+      headers["Authorization"] = `Bearer ${this.token}`;
+    }
+
     let currRetries = 0,
       success = false;
     do {
       try {
         const response = await axios({
           method,
-          url: `${url}?${this.queryId}`,
+          url: `${url}`,
           data,
           headers,
           timeout: 30000,
         });
         success = true;
-        if (response.data) return { success: true, data: response.data };
+        if (response.data) return { success: true, data: response.data.data };
         return { success: false, data: response.data };
       } catch (error) {
         if (error.status == 400) {
@@ -148,42 +148,50 @@ class ClientAPI {
     } while (currRetries <= retries && !success);
   }
 
-  async getUserInfo() {
-    return this.makeRequest(`${this.baseURL}/getUserData`, "get");
+  async auth() {
+    return this.makeRequest(`${this.baseURL}/auth/create-user`, "post", { refCode: "Iil4QcC4TF" }, { isAuth: true });
   }
 
-  // async getValidToken() {
-  //   const userId = this.session_name;
-  //   const existingToken = this.token;
-  //   let loginResult = null;
+  async getUserInfo() {
+    return this.makeRequest(`${this.baseURL}/user`, "get");
+  }
 
-  //   const isExp = isTokenExpired(existingToken );
-  //   if (!isRf && existingToken && !isExp) {
-  //     this.log("Using valid token", "success");
-  //     return token
-  //   }else {
-  //     this.log("Token not found or expired, logging in...", "warning");
-  //     loginResult = await this.auth();
-  //   }
+  async getQuests() {
+    return this.makeRequest(`${this.baseURL}/user/quest`, "get");
+  }
 
-  //   if (loginResult?.success) {
-  //     const { refresh_token, access_token } = loginResult?.data;
-  //     if (access_token) {
-  //       saveToken(userId, access_token);
-  //       this.token = access_token;
-  //     }
-  //     if (refresh_token) {
-  //       saveJson(userId, refresh_token, "refresh_token.json");
-  //       this.rfToken = refresh_token;
-  //     }
-  //     return { access_token: access_token, refresh_token: refresh_token };
-  //   } else {
-  //     this.log(`Can't get token, try get new query_id!`, "warning");
-  //   }
-  //   return { access_token: null, refresh_token: null };
-  // }
+  async getValidToken() {
+    const userId = this.session_name;
+    const existingToken = this.token;
+    let loginResult = null;
+
+    const isExp = isTokenExpired(existingToken);
+    if (existingToken && !isExp) {
+      this.log("Using valid token", "success");
+      return token;
+    } else {
+      this.log("Token not found or expired, logging in...", "warning");
+      loginResult = await this.auth();
+    }
+
+    if (loginResult?.success) {
+      const { token } = loginResult?.data;
+      if (token) {
+        saveToken(userId, token);
+        this.token = token;
+      }
+
+      return token;
+    } else {
+      this.log(`Can't get token, try get new query_id!`, "warning");
+    }
+    return null;
+  }
 
   async processAccount() {
+    const token = await this.getValidToken();
+    if (!token) return this.log(`Can't get token for account ${this.accountIndex + 1}, skipping...`, "error");
+
     let userData = { success: false },
       retries = 0;
     do {
